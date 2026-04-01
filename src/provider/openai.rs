@@ -35,7 +35,7 @@ impl OpenAIProvider {
         headers
     }
 
-    fn build_messages(messages: &[Message], system: &str) -> Vec<Value> {
+    fn build_messages(messages: &[Message], system: &str, compat: &ProviderCompat) -> Vec<Value> {
         let mut result: Vec<Value> = Vec::new();
 
         // System message first
@@ -72,7 +72,6 @@ impl OpenAIProvider {
                             }
                         }
                     } else {
-                        // Plain text user message
                         let text: String = msg
                             .content
                             .iter()
@@ -85,6 +84,7 @@ impl OpenAIProvider {
                             })
                             .collect::<Vec<_>>()
                             .join("\n");
+                        let text = strip_patterns_from_text(&text, compat);
                         result.push(json!({
                             "role": "user",
                             "content": text
@@ -94,7 +94,6 @@ impl OpenAIProvider {
                 Role::Assistant => {
                     let mut msg_json = json!({ "role": "assistant" });
 
-                    // Extract text content
                     let text: String = msg
                         .content
                         .iter()
@@ -107,6 +106,7 @@ impl OpenAIProvider {
                         })
                         .collect::<Vec<_>>()
                         .join("");
+                    let text = strip_patterns_from_text(&text, compat);
 
                     if !text.is_empty() {
                         msg_json["content"] = json!(text);
@@ -114,7 +114,6 @@ impl OpenAIProvider {
                         msg_json["content"] = Value::Null;
                     }
 
-                    // Extract tool calls
                     let tool_calls: Vec<Value> = msg
                         .content
                         .iter()
@@ -144,7 +143,6 @@ impl OpenAIProvider {
                     // Already handled above
                 }
                 Role::Tool => {
-                    // Shouldn't happen in our internal format, but handle gracefully
                     for block in &msg.content {
                         if let ContentBlock::ToolResult {
                             tool_use_id,
@@ -161,6 +159,21 @@ impl OpenAIProvider {
                     }
                 }
             }
+        }
+
+        // Dedup tool results: keep last occurrence of each tool_call_id
+        if compat.dedup_tool_results() {
+            dedup_tool_results(&mut result);
+        }
+
+        // Clean orphan tool calls: remove tool_call entries with no matching tool result
+        if compat.clean_orphan_tool_calls() {
+            clean_orphaned_tool_calls(&mut result);
+        }
+
+        // Merge consecutive assistant messages
+        if compat.merge_assistant_messages() {
+            merge_consecutive_assistant(&mut result);
         }
 
         result
@@ -183,19 +196,146 @@ impl OpenAIProvider {
     }
 
     fn build_request_body(&self, request: &LlmRequest) -> Value {
+        let max_tokens_field = self
+            .compat
+            .max_tokens_field
+            .as_deref()
+            .unwrap_or("max_tokens");
+
         let mut body = json!({
             "model": request.model,
-            "max_tokens": request.max_tokens,
-            "messages": Self::build_messages(&request.messages, &request.system),
+            "messages": Self::build_messages(&request.messages, &request.system, &self.compat),
             "stream": true,
             "stream_options": { "include_usage": true }
         });
+        body[max_tokens_field] = json!(request.max_tokens);
 
         if !request.tools.is_empty() {
             body["tools"] = json!(Self::build_tools(&request.tools));
         }
 
         body
+    }
+}
+
+/// Strip configured patterns from text content
+fn strip_patterns_from_text(text: &str, compat: &ProviderCompat) -> String {
+    match &compat.strip_patterns {
+        Some(patterns) if !patterns.is_empty() => {
+            let mut result = text.to_string();
+            for pattern in patterns {
+                result = result.replace(pattern, "");
+            }
+            result
+        }
+        _ => text.to_string(),
+    }
+}
+
+/// Deduplicate tool results: keep last occurrence of each tool_call_id
+fn dedup_tool_results(messages: &mut Vec<Value>) {
+    use std::collections::HashMap;
+
+    // Find the last index of each tool_call_id
+    let mut last_index: HashMap<String, usize> = HashMap::new();
+    for (i, msg) in messages.iter().enumerate() {
+        if msg["role"].as_str() == Some("tool") {
+            if let Some(id) = msg["tool_call_id"].as_str() {
+                last_index.insert(id.to_string(), i);
+            }
+        }
+    }
+
+    // Keep only the last occurrence
+    let mut seen: HashMap<String, bool> = HashMap::new();
+    let mut to_remove = Vec::new();
+    for (i, msg) in messages.iter().enumerate() {
+        if msg["role"].as_str() == Some("tool") {
+            if let Some(id) = msg["tool_call_id"].as_str() {
+                if let Some(&last_i) = last_index.get(id) {
+                    if i != last_i && !seen.contains_key(id) {
+                        to_remove.push(i);
+                    }
+                    if i == last_i {
+                        seen.insert(id.to_string(), true);
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove in reverse order to preserve indices
+    for i in to_remove.into_iter().rev() {
+        messages.remove(i);
+    }
+}
+
+/// Remove tool_call entries from assistant messages that have no corresponding tool result
+fn clean_orphaned_tool_calls(messages: &mut Vec<Value>) {
+    use std::collections::HashSet;
+
+    let answered_ids: HashSet<String> = messages
+        .iter()
+        .filter(|m| m["role"].as_str() == Some("tool"))
+        .filter_map(|m| m["tool_call_id"].as_str().map(String::from))
+        .collect();
+
+    for msg in messages.iter_mut() {
+        if msg["role"].as_str() == Some("assistant") {
+            if let Some(tcs) = msg["tool_calls"].as_array_mut() {
+                tcs.retain(|tc| {
+                    tc["id"]
+                        .as_str()
+                        .map(|id| answered_ids.contains(id))
+                        .unwrap_or(true)
+                });
+                if tcs.is_empty() {
+                    msg.as_object_mut().unwrap().remove("tool_calls");
+                }
+            }
+        }
+    }
+}
+
+/// Merge consecutive assistant messages into one
+fn merge_consecutive_assistant(messages: &mut Vec<Value>) {
+    let mut i = 0;
+    while i + 1 < messages.len() {
+        if messages[i]["role"].as_str() == Some("assistant")
+            && messages[i + 1]["role"].as_str() == Some("assistant")
+        {
+            let next = messages.remove(i + 1);
+
+            // Merge text content
+            let curr_text = messages[i]["content"].as_str().unwrap_or("").to_string();
+            let next_text = next["content"].as_str().unwrap_or("").to_string();
+            let merged_text = match (curr_text.is_empty(), next_text.is_empty()) {
+                (true, true) => String::new(),
+                (true, false) => next_text,
+                (false, true) => curr_text,
+                (false, false) => format!("{}{}", curr_text, next_text),
+            };
+
+            if !merged_text.is_empty() {
+                messages[i]["content"] = json!(merged_text);
+            }
+
+            // Merge tool_calls
+            if let Some(next_tcs) = next["tool_calls"].as_array() {
+                let curr_tcs = messages[i]
+                    .as_object_mut()
+                    .unwrap()
+                    .entry("tool_calls")
+                    .or_insert_with(|| json!([]));
+                if let Some(arr) = curr_tcs.as_array_mut() {
+                    arr.extend(next_tcs.iter().cloned());
+                }
+            }
+
+            // Don't increment i — check the merged result against the next message
+        } else {
+            i += 1;
+        }
     }
 }
 
@@ -416,4 +556,250 @@ fn parse_sse_chunk(data: &str, state: &mut StreamState) -> Vec<LlmEvent> {
     }
 
     events
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::message::*;
+
+    fn no_compat() -> ProviderCompat {
+        ProviderCompat::default()
+    }
+
+    fn openai_compat() -> ProviderCompat {
+        ProviderCompat::openai_defaults()
+    }
+
+    // --- max_tokens_field ---
+
+    #[test]
+    fn test_max_tokens_field_default() {
+        let provider = OpenAIProvider::new("key", "http://localhost", openai_compat());
+        let req = LlmRequest {
+            model: "gpt-4o".into(),
+            system: String::new(),
+            messages: vec![],
+            tools: vec![],
+            max_tokens: 1024,
+            thinking: None,
+        };
+        let body = provider.build_request_body(&req);
+        assert_eq!(body["max_tokens"], 1024);
+        assert!(body.get("max_completion_tokens").is_none());
+    }
+
+    #[test]
+    fn test_max_tokens_field_custom() {
+        let compat = ProviderCompat {
+            max_tokens_field: Some("max_completion_tokens".into()),
+            ..Default::default()
+        };
+        let provider = OpenAIProvider::new("key", "http://localhost", compat);
+        let req = LlmRequest {
+            model: "gpt-4o".into(),
+            system: String::new(),
+            messages: vec![],
+            tools: vec![],
+            max_tokens: 2048,
+            thinking: None,
+        };
+        let body = provider.build_request_body(&req);
+        assert_eq!(body["max_completion_tokens"], 2048);
+        assert!(body.get("max_tokens").is_none());
+    }
+
+    // --- merge_assistant_messages ---
+
+    #[test]
+    fn test_merge_assistant_messages_enabled() {
+        let messages = vec![
+            Message {
+                role: Role::Assistant,
+                content: vec![ContentBlock::Text { text: "hello".into() }],
+            },
+            Message {
+                role: Role::Assistant,
+                content: vec![ContentBlock::Text { text: " world".into() }],
+            },
+        ];
+        let result = OpenAIProvider::build_messages(&messages, "", &openai_compat());
+        let assistant_msgs: Vec<_> = result.iter().filter(|m| m["role"] == "assistant").collect();
+        assert_eq!(assistant_msgs.len(), 1);
+        assert_eq!(assistant_msgs[0]["content"], "hello world");
+    }
+
+    #[test]
+    fn test_merge_assistant_messages_disabled() {
+        let messages = vec![
+            Message {
+                role: Role::Assistant,
+                content: vec![ContentBlock::Text { text: "hello".into() }],
+            },
+            Message {
+                role: Role::Assistant,
+                content: vec![ContentBlock::Text { text: " world".into() }],
+            },
+        ];
+        let result = OpenAIProvider::build_messages(&messages, "", &no_compat());
+        let assistant_msgs: Vec<_> = result.iter().filter(|m| m["role"] == "assistant").collect();
+        assert_eq!(assistant_msgs.len(), 2);
+    }
+
+    // --- clean_orphan_tool_calls ---
+
+    #[test]
+    fn test_clean_orphan_tool_calls_enabled() {
+        let messages = vec![
+            Message {
+                role: Role::Assistant,
+                content: vec![
+                    ContentBlock::ToolUse {
+                        id: "tc1".into(),
+                        name: "bash".into(),
+                        input: json!({}),
+                    },
+                    ContentBlock::ToolUse {
+                        id: "tc2".into(),
+                        name: "read".into(),
+                        input: json!({}),
+                    },
+                ],
+            },
+            Message {
+                role: Role::Tool,
+                content: vec![ContentBlock::ToolResult {
+                    tool_use_id: "tc1".into(),
+                    content: "ok".into(),
+                    is_error: false,
+                }],
+            },
+            // tc2 has no result → orphan
+        ];
+        let result = OpenAIProvider::build_messages(&messages, "", &openai_compat());
+        let assistant = result.iter().find(|m| m["role"] == "assistant").unwrap();
+        let tcs = assistant["tool_calls"].as_array().unwrap();
+        assert_eq!(tcs.len(), 1);
+        assert_eq!(tcs[0]["id"], "tc1");
+    }
+
+    #[test]
+    fn test_clean_orphan_tool_calls_disabled() {
+        let messages = vec![
+            Message {
+                role: Role::Assistant,
+                content: vec![
+                    ContentBlock::ToolUse {
+                        id: "tc1".into(),
+                        name: "bash".into(),
+                        input: json!({}),
+                    },
+                    ContentBlock::ToolUse {
+                        id: "tc2".into(),
+                        name: "read".into(),
+                        input: json!({}),
+                    },
+                ],
+            },
+            Message {
+                role: Role::Tool,
+                content: vec![ContentBlock::ToolResult {
+                    tool_use_id: "tc1".into(),
+                    content: "ok".into(),
+                    is_error: false,
+                }],
+            },
+        ];
+        let result = OpenAIProvider::build_messages(&messages, "", &no_compat());
+        let assistant = result.iter().find(|m| m["role"] == "assistant").unwrap();
+        let tcs = assistant["tool_calls"].as_array().unwrap();
+        assert_eq!(tcs.len(), 2);
+    }
+
+    // --- dedup_tool_results ---
+
+    #[test]
+    fn test_dedup_tool_results_enabled() {
+        let messages = vec![
+            Message {
+                role: Role::Assistant,
+                content: vec![ContentBlock::ToolUse {
+                    id: "tc1".into(),
+                    name: "bash".into(),
+                    input: json!({}),
+                }],
+            },
+            Message {
+                role: Role::Tool,
+                content: vec![ContentBlock::ToolResult {
+                    tool_use_id: "tc1".into(),
+                    content: "first".into(),
+                    is_error: false,
+                }],
+            },
+            Message {
+                role: Role::Tool,
+                content: vec![ContentBlock::ToolResult {
+                    tool_use_id: "tc1".into(),
+                    content: "second".into(),
+                    is_error: false,
+                }],
+            },
+        ];
+        let result = OpenAIProvider::build_messages(&messages, "", &openai_compat());
+        let tool_msgs: Vec<_> = result.iter().filter(|m| m["role"] == "tool").collect();
+        assert_eq!(tool_msgs.len(), 1);
+        assert_eq!(tool_msgs[0]["content"], "second");
+    }
+
+    #[test]
+    fn test_dedup_tool_results_disabled() {
+        let messages = vec![
+            Message {
+                role: Role::Assistant,
+                content: vec![ContentBlock::ToolUse {
+                    id: "tc1".into(),
+                    name: "bash".into(),
+                    input: json!({}),
+                }],
+            },
+            Message {
+                role: Role::Tool,
+                content: vec![ContentBlock::ToolResult {
+                    tool_use_id: "tc1".into(),
+                    content: "first".into(),
+                    is_error: false,
+                }],
+            },
+            Message {
+                role: Role::Tool,
+                content: vec![ContentBlock::ToolResult {
+                    tool_use_id: "tc1".into(),
+                    content: "second".into(),
+                    is_error: false,
+                }],
+            },
+        ];
+        let result = OpenAIProvider::build_messages(&messages, "", &no_compat());
+        let tool_msgs: Vec<_> = result.iter().filter(|m| m["role"] == "tool").collect();
+        assert_eq!(tool_msgs.len(), 2);
+    }
+
+    // --- strip_patterns ---
+
+    #[test]
+    fn test_strip_patterns() {
+        let messages = vec![Message {
+            role: Role::User,
+            content: vec![ContentBlock::Text {
+                text: "hello __MARKER__ world".into(),
+            }],
+        }];
+        let compat = ProviderCompat {
+            strip_patterns: Some(vec!["__MARKER__".into()]),
+            ..Default::default()
+        };
+        let result = OpenAIProvider::build_messages(&messages, "", &compat);
+        assert_eq!(result[0]["content"], "hello  world");
+    }
 }
