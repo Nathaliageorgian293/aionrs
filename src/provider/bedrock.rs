@@ -71,7 +71,7 @@ impl BedrockProvider {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": request.max_tokens,
             "system": system,
-            "messages": anthropic_shared::build_messages(&request.messages)
+            "messages": anthropic_shared::build_messages(&request.messages, &self.compat)
         });
 
         if !request.tools.is_empty() {

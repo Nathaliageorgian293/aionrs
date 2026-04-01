@@ -80,7 +80,7 @@ impl VertexProvider {
             "anthropic_version": "vertex-2023-10-16",
             "max_tokens": request.max_tokens,
             "system": system,
-            "messages": anthropic_shared::build_messages(&request.messages),
+            "messages": anthropic_shared::build_messages(&request.messages, &self.compat),
             "stream": true
         });
 

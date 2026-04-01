@@ -66,7 +66,7 @@ impl AnthropicProvider {
             "model": request.model,
             "max_tokens": request.max_tokens,
             "system": system,
-            "messages": anthropic_shared::build_messages(&request.messages),
+            "messages": anthropic_shared::build_messages(&request.messages, &self.compat),
             "stream": true
         });
 

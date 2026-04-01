@@ -9,9 +9,11 @@ use crate::types::message::{ContentBlock, Message, Role, StopReason, TokenUsage}
 use crate::types::tool::ToolDef;
 
 use super::ProviderError;
+use super::compat::ProviderCompat;
 
-/// Convert internal Message format to Anthropic API message format
-pub fn build_messages(messages: &[Message]) -> Vec<Value> {
+/// Convert internal Message format to Anthropic API message format.
+/// Compat flags control merging and alternation behavior.
+pub fn build_messages(messages: &[Message], compat: &ProviderCompat) -> Vec<Value> {
     let mut result: Vec<Value> = Vec::new();
 
     for msg in messages {
@@ -21,7 +23,7 @@ pub fn build_messages(messages: &[Message]) -> Vec<Value> {
             Role::System => continue, // system is top-level in Anthropic
         };
 
-        let content: Vec<Value> = msg
+        let mut content: Vec<Value> = msg
             .content
             .iter()
             .map(|block| match block {
@@ -29,12 +31,19 @@ pub fn build_messages(messages: &[Message]) -> Vec<Value> {
                     "type": "text",
                     "text": text
                 }),
-                ContentBlock::ToolUse { id, name, input } => json!({
-                    "type": "tool_use",
-                    "id": id,
-                    "name": name,
-                    "input": input
-                }),
+                ContentBlock::ToolUse { id, name, input } => {
+                    let tool_id = if id.is_empty() && compat.auto_tool_id() {
+                        generate_tool_id()
+                    } else {
+                        id.clone()
+                    };
+                    json!({
+                        "type": "tool_use",
+                        "id": tool_id,
+                        "name": name,
+                        "input": input
+                    })
+                }
                 ContentBlock::ToolResult {
                     tool_use_id,
                     content,
@@ -52,12 +61,29 @@ pub fn build_messages(messages: &[Message]) -> Vec<Value> {
             })
             .collect();
 
-        // Merge consecutive messages with the same role
-        if let Some(last) = result.last_mut() {
-            if last["role"].as_str() == Some(role_str) {
-                if let Some(arr) = last["content"].as_array_mut() {
-                    arr.extend(content);
-                    continue;
+        // Strip patterns from text content
+        if let Some(patterns) = &compat.strip_patterns {
+            for item in &mut content {
+                if item["type"] == "text" {
+                    if let Some(text) = item["text"].as_str() {
+                        let mut cleaned = text.to_string();
+                        for pattern in patterns {
+                            cleaned = cleaned.replace(pattern, "");
+                        }
+                        item["text"] = json!(cleaned);
+                    }
+                }
+            }
+        }
+
+        // Merge consecutive messages with the same role (if enabled)
+        if compat.merge_same_role() {
+            if let Some(last) = result.last_mut() {
+                if last["role"].as_str() == Some(role_str) {
+                    if let Some(arr) = last["content"].as_array_mut() {
+                        arr.extend(content);
+                        continue;
+                    }
                 }
             }
         }
@@ -68,7 +94,64 @@ pub fn build_messages(messages: &[Message]) -> Vec<Value> {
         }));
     }
 
+    // Ensure user/assistant alternation (if enabled)
+    if compat.ensure_alternation() {
+        ensure_message_alternation(&mut result);
+    }
+
     result
+}
+
+/// Insert filler messages to ensure strict user/assistant alternation.
+fn ensure_message_alternation(messages: &mut Vec<Value>) {
+    if messages.is_empty() {
+        return;
+    }
+
+    // If first message is assistant, prepend a user filler
+    if messages[0]["role"].as_str() == Some("assistant") {
+        messages.insert(
+            0,
+            json!({
+                "role": "user",
+                "content": [{"type": "text", "text": "."}]
+            }),
+        );
+    }
+
+    // Walk through and insert fillers where alternation is broken
+    let mut i = 1;
+    while i < messages.len() {
+        let prev_role = messages[i - 1]["role"].as_str().unwrap_or("");
+        let curr_role = messages[i]["role"].as_str().unwrap_or("");
+        if prev_role == curr_role {
+            let filler_role = if curr_role == "user" {
+                "assistant"
+            } else {
+                "user"
+            };
+            messages.insert(
+                i,
+                json!({
+                    "role": filler_role,
+                    "content": [{"type": "text", "text": "."}]
+                }),
+            );
+            i += 1; // skip the filler we just inserted
+        }
+        i += 1;
+    }
+}
+
+/// Generate a unique tool ID when missing
+fn generate_tool_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let rand: u32 = (ts as u32).wrapping_mul(2654435761); // simple hash
+    format!("toolu_{:x}_{:08x}", ts, rand)
 }
 
 /// Convert internal ToolDef format to Anthropic API tool format
@@ -282,20 +365,25 @@ mod tests {
     use crate::types::tool::ToolDef;
     use serde_json::json;
 
+    /// Compat with merge but no alternation — matches pre-compat behavior
+    fn default_compat() -> ProviderCompat {
+        ProviderCompat {
+            merge_same_role: Some(true),
+            ..Default::default()
+        }
+    }
+
     // --- build_messages tests ---
 
     #[test]
     fn test_build_messages_text_only() {
-        // arrange
         let messages = vec![Message {
             role: Role::User,
             content: vec![ContentBlock::Text {
                 text: "Hello".to_string(),
             }],
         }];
-        // act
-        let result = build_messages(&messages);
-        // assert
+        let result = build_messages(&messages, &default_compat());
         assert_eq!(result.len(), 1);
         assert_eq!(result[0]["role"], "user");
         let content = result[0]["content"].as_array().unwrap();
@@ -306,7 +394,6 @@ mod tests {
 
     #[test]
     fn test_build_messages_with_tool_use() {
-        // arrange
         let messages = vec![Message {
             role: Role::Assistant,
             content: vec![ContentBlock::ToolUse {
@@ -315,9 +402,7 @@ mod tests {
                 input: json!({"cmd": "ls"}),
             }],
         }];
-        // act
-        let result = build_messages(&messages);
-        // assert
+        let result = build_messages(&messages, &default_compat());
         assert_eq!(result.len(), 1);
         assert_eq!(result[0]["role"], "assistant");
         let content = result[0]["content"].as_array().unwrap();
@@ -329,7 +414,6 @@ mod tests {
 
     #[test]
     fn test_build_messages_with_tool_result() {
-        // arrange
         let messages = vec![Message {
             role: Role::Tool,
             content: vec![ContentBlock::ToolResult {
@@ -338,9 +422,7 @@ mod tests {
                 is_error: false,
             }],
         }];
-        // act
-        let result = build_messages(&messages);
-        // assert
+        let result = build_messages(&messages, &default_compat());
         assert_eq!(result.len(), 1);
         assert_eq!(result[0]["role"], "user"); // Tool maps to "user"
         let content = result[0]["content"].as_array().unwrap();
@@ -352,21 +434,133 @@ mod tests {
 
     #[test]
     fn test_build_messages_with_thinking() {
-        // arrange
         let messages = vec![Message {
             role: Role::Assistant,
             content: vec![ContentBlock::Thinking {
                 thinking: "Let me think...".to_string(),
             }],
         }];
-        // act
-        let result = build_messages(&messages);
-        // assert
+        let result = build_messages(&messages, &default_compat());
         assert_eq!(result.len(), 1);
         assert_eq!(result[0]["role"], "assistant");
         let content = result[0]["content"].as_array().unwrap();
         assert_eq!(content[0]["type"], "thinking");
         assert_eq!(content[0]["thinking"], "Let me think...");
+    }
+
+    // --- compat-driven behavior tests ---
+
+    #[test]
+    fn test_ensure_alternation_inserts_user_filler_before_assistant() {
+        let messages = vec![Message {
+            role: Role::Assistant,
+            content: vec![ContentBlock::Text { text: "hi".into() }],
+        }];
+        let compat = ProviderCompat {
+            ensure_alternation: Some(true),
+            merge_same_role: Some(true),
+            ..Default::default()
+        };
+        let result = build_messages(&messages, &compat);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0]["role"], "user");
+        assert_eq!(result[1]["role"], "assistant");
+    }
+
+    #[test]
+    fn test_ensure_alternation_disabled_no_filler() {
+        let messages = vec![Message {
+            role: Role::Assistant,
+            content: vec![ContentBlock::Text { text: "hi".into() }],
+        }];
+        let compat = ProviderCompat {
+            ensure_alternation: Some(false),
+            ..Default::default()
+        };
+        let result = build_messages(&messages, &compat);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0]["role"], "assistant");
+    }
+
+    #[test]
+    fn test_merge_same_role_enabled_merges_consecutive_user() {
+        let messages = vec![
+            Message {
+                role: Role::User,
+                content: vec![ContentBlock::Text { text: "a".into() }],
+            },
+            Message {
+                role: Role::User,
+                content: vec![ContentBlock::Text { text: "b".into() }],
+            },
+        ];
+        let compat = ProviderCompat {
+            merge_same_role: Some(true),
+            ..Default::default()
+        };
+        let result = build_messages(&messages, &compat);
+        assert_eq!(result.len(), 1);
+        let content = result[0]["content"].as_array().unwrap();
+        assert_eq!(content.len(), 2);
+    }
+
+    #[test]
+    fn test_merge_same_role_disabled_keeps_separate() {
+        let messages = vec![
+            Message {
+                role: Role::User,
+                content: vec![ContentBlock::Text { text: "a".into() }],
+            },
+            Message {
+                role: Role::User,
+                content: vec![ContentBlock::Text { text: "b".into() }],
+            },
+        ];
+        let compat = ProviderCompat {
+            merge_same_role: Some(false),
+            ..Default::default()
+        };
+        let result = build_messages(&messages, &compat);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_auto_tool_id_generates_id_when_empty() {
+        let messages = vec![Message {
+            role: Role::Assistant,
+            content: vec![ContentBlock::ToolUse {
+                id: String::new(),
+                name: "bash".into(),
+                input: json!({}),
+            }],
+        }];
+        let compat = ProviderCompat {
+            auto_tool_id: Some(true),
+            ..Default::default()
+        };
+        let result = build_messages(&messages, &compat);
+        let content = result[0]["content"].as_array().unwrap();
+        let id = content[0]["id"].as_str().unwrap();
+        assert!(id.starts_with("toolu_"));
+    }
+
+    #[test]
+    fn test_auto_tool_id_preserves_existing_id() {
+        let messages = vec![Message {
+            role: Role::Assistant,
+            content: vec![ContentBlock::ToolUse {
+                id: "existing_id".into(),
+                name: "bash".into(),
+                input: json!({}),
+            }],
+        }];
+        let compat = ProviderCompat {
+            auto_tool_id: Some(true),
+            ..Default::default()
+        };
+        let result = build_messages(&messages, &compat);
+        let content = result[0]["content"].as_array().unwrap();
+        assert_eq!(content[0]["id"], "existing_id");
     }
 
     // --- build_tools tests ---
