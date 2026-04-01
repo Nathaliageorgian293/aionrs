@@ -1,6 +1,7 @@
 pub mod anthropic;
 pub mod anthropic_shared;
 pub mod bedrock;
+pub mod compat;
 pub mod openai;
 pub mod retry;
 pub mod vertex;
