@@ -18,7 +18,7 @@ use crate::types::llm::{LlmEvent, LlmRequest, ThinkingConfig};
 use crate::types::message::{StopReason, TokenUsage};
 
 use super::anthropic_shared;
-use super::compat::ProviderCompat;
+use super::compat::{self, ProviderCompat};
 use super::{LlmProvider, ProviderError};
 
 pub struct BedrockProvider {
@@ -76,6 +76,13 @@ impl BedrockProvider {
 
         if !request.tools.is_empty() {
             let mut tools = anthropic_shared::build_tools(&request.tools);
+            if self.compat.sanitize_schema() {
+                for tool in &mut tools {
+                    if let Some(schema) = tool.get("input_schema").cloned() {
+                        tool["input_schema"] = compat::sanitize_json_schema(&schema);
+                    }
+                }
+            }
             if self.cache_enabled {
                 if let Some(last) = tools.last_mut() {
                     last["cache_control"] = json!({ "type": "ephemeral" });
