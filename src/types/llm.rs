@@ -13,6 +13,8 @@ pub struct LlmRequest {
     pub max_tokens: u32,
     /// Optional: thinking config (Anthropic only)
     pub thinking: Option<ThinkingConfig>,
+    /// Optional: reasoning effort for OpenAI reasoning models (low/medium/high)
+    pub reasoning_effort: Option<String>,
 }
 
 #[derive(Debug, Clone)]

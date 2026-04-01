@@ -246,6 +246,7 @@ pub fn test_config() -> Config {
         system_prompt: Some("You are a test assistant.".to_string()),
         thinking: None,
         prompt_caching: false,
+        compat: aionrs::provider::compat::ProviderCompat::anthropic_defaults(),
         tools: ToolsConfig {
             auto_approve: true,
             allow_list: vec![],

@@ -197,6 +197,7 @@ impl AgentEngine {
                 tools: self.tools.to_tool_defs(),
                 max_tokens: self.max_tokens,
                 thinking: self.thinking.clone(),
+                reasoning_effort: None,
             };
 
             let mut rx = self.provider.stream(&request).await?;

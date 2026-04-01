@@ -214,6 +214,10 @@ impl OpenAIProvider {
             body["tools"] = json!(Self::build_tools(&request.tools));
         }
 
+        if let Some(effort) = &request.reasoning_effort {
+            body["reasoning_effort"] = json!(effort);
+        }
+
         body
     }
 }
@@ -480,6 +484,13 @@ fn parse_sse_chunk(data: &str, state: &mut StreamState) -> Vec<LlmEvent> {
 
     let delta = &choice["delta"];
 
+    // Reasoning content (OpenAI reasoning models)
+    if let Some(reasoning) = delta["reasoning_content"].as_str() {
+        if !reasoning.is_empty() {
+            events.push(LlmEvent::ThinkingDelta(reasoning.to_string()));
+        }
+    }
+
     // Text content
     if let Some(content) = delta["content"].as_str() {
         if !content.is_empty() {
@@ -583,6 +594,7 @@ mod tests {
             tools: vec![],
             max_tokens: 1024,
             thinking: None,
+            reasoning_effort: None,
         };
         let body = provider.build_request_body(&req);
         assert_eq!(body["max_tokens"], 1024);
@@ -603,6 +615,7 @@ mod tests {
             tools: vec![],
             max_tokens: 2048,
             thinking: None,
+            reasoning_effort: None,
         };
         let body = provider.build_request_body(&req);
         assert_eq!(body["max_completion_tokens"], 2048);
