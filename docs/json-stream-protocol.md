@@ -31,6 +31,7 @@ Emitted once after initialization completes. Client MUST wait for this before se
 {
   "type": "ready",
   "version": "0.1.0",
+  "session_id": "a1b2c3",
   "capabilities": {
     "tool_approval": true,
     "thinking": true,
@@ -42,6 +43,7 @@ Emitted once after initialization completes. Client MUST wait for this before se
 | Field | Type | Description |
 |-------|------|-------------|
 | `version` | string | Protocol version (semver) |
+| `session_id` | string? | Session ID (omitted when sessions are disabled in config) |
 | `capabilities.tool_approval` | bool | Whether agent supports pause-and-wait tool approval |
 | `capabilities.thinking` | bool | Whether agent emits thinking events |
 | `capabilities.mcp` | bool | Whether MCP tools are available |
@@ -363,7 +365,22 @@ Environment variables set by client:
   ANTHROPIC_API_KEY=sk-...
   # or OPENAI_API_KEY, AWS_REGION, etc.
 
-Agent initializes → stdout: {"type":"ready",...}
+Agent initializes → stdout: {"type":"ready","session_id":"a1b2c3",...}
+```
+
+**Session lifecycle flags** (mutually exclusive):
+
+| Flag | Description |
+|------|-------------|
+| `--session-id <ID>` | Use a specific session ID instead of auto-generating one. Errors if the ID already exists. |
+| `--resume <ID>` | Resume a previous session (loads conversation history). Use `latest` to resume the most recent. |
+
+```bash
+# New session with a custom ID
+aionrs --json-stream --session-id my-conv-123 --provider openai --model gpt-4o
+
+# Resume an existing session
+aionrs --json-stream --resume my-conv-123 --provider openai --model gpt-4o
 ```
 
 ### 3.2 Message Turn

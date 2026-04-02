@@ -184,7 +184,13 @@ aionrs --resume latest
 
 # Resume a specific session
 aionrs --resume a1b2c3
+
+# Create a session with a custom ID
+aionrs --session-id my-conv-123
 ```
 
+- `--session-id` and `--resume` are mutually exclusive
+- `--session-id` errors if the ID already exists
+- Both flags work in interactive and `--json-stream` mode
 - Auto-saves after each tool call turn
 - Auto-cleans oldest sessions when exceeding `max_sessions`
