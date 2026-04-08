@@ -25,8 +25,11 @@ use aionrs::tools::glob::GlobTool;
 use aionrs::tools::grep::GrepTool;
 use aionrs::tools::read::ReadTool;
 use aionrs::tools::registry::ToolRegistry;
+use aionrs::tools::skill::SkillTool;
 use aionrs::tools::spawn::SpawnTool;
 use aionrs::tools::write::WriteTool;
+use aionrs::skills::loader::load_all_skills;
+use aionrs::skills::permissions::SkillPermissionChecker;
 
 #[derive(Parser)]
 #[command(name = "aionrs", about = "A multi-provider AI agent CLI with tool orchestration support", version)]
@@ -196,10 +199,6 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    // Build system prompt from context
-    let system_prompt = context::build_system_prompt(config.system_prompt.as_deref(), &cwd, &[], None);
-    config.system_prompt = Some(system_prompt);
-
     // Register built-in tools
     let mut registry = ToolRegistry::new();
     registry.register(Box::new(ReadTool));
@@ -227,6 +226,38 @@ async fn main() -> anyhow::Result<()> {
     } else {
         None
     };
+
+    // Load skills from all sources (bundled, MCP, user, project)
+    let cwd_path = std::path::Path::new(&cwd);
+    let skills = load_all_skills(
+        cwd_path,
+        &[],
+        false,
+        mcp_manager.as_deref(),
+    )
+    .await;
+
+    // Build system prompt with loaded skills
+    let system_prompt = context::build_system_prompt(
+        config.system_prompt.as_deref(),
+        &cwd,
+        &skills,
+        None,
+    );
+    config.system_prompt = Some(system_prompt);
+
+    // Register SkillTool so the LLM can invoke skills
+    let skills_arc = Arc::new(skills);
+    let skill_checker = SkillPermissionChecker::new(
+        config.tools.skills.deny.clone(),
+        config.tools.skills.allow.clone(),
+        config.tools.auto_approve,
+    );
+    registry.register(Box::new(SkillTool::new(
+        skills_arc,
+        cwd.clone(),
+        skill_checker,
+    )));
 
     // Create provider (shared via Arc for sub-agent reuse)
     let provider = provider::create_provider(&config);
