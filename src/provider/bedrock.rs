@@ -1,4 +1,4 @@
-// AWS Bedrock provider for Claude models.
+// AWS Bedrock provider for Anthropic models.
 // Uses AWS SigV4 authentication and AWS event stream binary framing.
 
 use async_trait::async_trait;

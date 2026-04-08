@@ -368,7 +368,7 @@ async fn tc_11_6_empty_add_dirs_no_effect() {
 // -----------------------------------------------------------------------
 // TC-8.8: skill_root semantic — must be skill_dir itself (the dir containing SKILL.md),
 // not skill_dir's parent. This verifies the L-5 fix: skill_root = skill_dir,
-// matching TS skillRoot used for ${CLAUDE_SKILL_DIR} substitution.
+// matching TS skillRoot used for ${AIONRS_SKILL_DIR} substitution.
 // -----------------------------------------------------------------------
 
 #[tokio::test]

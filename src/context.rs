@@ -22,11 +22,11 @@ pub fn build_system_prompt(
         parts.push(custom.to_string());
     }
 
-    // Read CLAUDE.md if it exists
-    let claude_md = std::path::Path::new(cwd).join("CLAUDE.md");
-    if claude_md.exists() {
-        if let Ok(content) = std::fs::read_to_string(&claude_md) {
-            parts.push(format!("# Project Instructions (CLAUDE.md)\n\n{content}"));
+    // Read AGENTS.md if it exists
+    let agents_md = std::path::Path::new(cwd).join("AGENTS.md");
+    if agents_md.exists() {
+        if let Ok(content) = std::fs::read_to_string(&agents_md) {
+            parts.push(format!("# Project Instructions (AGENTS.md)\n\n{content}"));
         }
     }
 
@@ -355,6 +355,51 @@ mod tests {
         assert!(
             result.contains("/workspace/my-project"),
             "cwd should appear in the system prompt"
+        );
+    }
+
+    #[test]
+    fn test_build_system_prompt_loads_agents_md_not_claude_md() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let cwd = tmp.path();
+
+        // Create both AGENTS.md and CLAUDE.md
+        std::fs::write(cwd.join("AGENTS.md"), "AGENTS_CONTENT_HERE").unwrap();
+        std::fs::write(cwd.join("CLAUDE.md"), "CLAUDE_CONTENT_HERE").unwrap();
+
+        let result = build_system_prompt(None, &cwd.to_string_lossy(), &[], None);
+
+        assert!(
+            result.contains("AGENTS_CONTENT_HERE"),
+            "should load AGENTS.md content"
+        );
+        assert!(
+            !result.contains("CLAUDE_CONTENT_HERE"),
+            "should NOT load CLAUDE.md content"
+        );
+        assert!(
+            result.contains("Project Instructions (AGENTS.md)"),
+            "header should reference AGENTS.md"
+        );
+    }
+
+    #[test]
+    fn test_build_system_prompt_no_agents_md_no_injection() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let cwd = tmp.path();
+
+        // Only CLAUDE.md exists, no AGENTS.md
+        std::fs::write(cwd.join("CLAUDE.md"), "SHOULD_NOT_APPEAR").unwrap();
+
+        let result = build_system_prompt(None, &cwd.to_string_lossy(), &[], None);
+
+        assert!(
+            !result.contains("SHOULD_NOT_APPEAR"),
+            "CLAUDE.md should be ignored"
+        );
+        assert!(
+            !result.contains("Project Instructions"),
+            "no project instructions should be injected"
         );
     }
 }

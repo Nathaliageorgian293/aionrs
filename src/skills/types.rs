@@ -84,17 +84,17 @@ pub enum EffortLevel {
 /// Where the skill file originates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SkillSource {
-    /// ~/.claude/skills/
+    /// ~/.config/aionrs/skills/
     User,
-    /// .claude/skills/ (project-level)
+    /// .aionrs/skills/ (project-level)
     Project,
-    /// .claude/.managed/skills/
+    /// .aionrs/.managed/skills/
     Managed,
     /// Built-in bundled skills
     Bundled,
     /// Loaded via MCP protocol
     Mcp,
-    /// .claude/commands/ (legacy compatibility)
+    /// .aionrs/commands/ (legacy compatibility)
     Legacy,
 }
 

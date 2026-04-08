@@ -7,8 +7,8 @@ use regex::Regex;
 /// 2. Indexed arguments: `$ARGUMENTS[0]`, `$ARGUMENTS[1]`
 /// 3. Shorthand indexed: `$0`, `$1`, `$2`
 /// 4. Full arguments: `$ARGUMENTS` → entire args string
-/// 5. Skill directory: `${CLAUDE_SKILL_DIR}` → `skill_root`
-/// 6. Session ID: `${CLAUDE_SESSION_ID}` → `session_id`
+/// 5. Skill directory: `${AIONRS_SKILL_DIR}` → `skill_root`
+/// 6. Session ID: `${AIONRS_SESSION_ID}` → `session_id`
 /// 7. Fallback: if content is unchanged and args is non-empty, append `\n\nARGUMENTS: {args}`
 ///
 /// When `args` is `None`, the content is returned unchanged (no placeholders replaced).
@@ -22,14 +22,14 @@ pub fn substitute_arguments(
     // Always apply env-var substitutions regardless of args.
     let mut result = content.to_owned();
 
-    // 5. ${CLAUDE_SKILL_DIR}
+    // 5. ${AIONRS_SKILL_DIR}
     if let Some(root) = skill_root {
-        result = result.replace("${CLAUDE_SKILL_DIR}", root);
+        result = result.replace("${AIONRS_SKILL_DIR}", root);
     }
 
-    // 6. ${CLAUDE_SESSION_ID}
+    // 6. ${AIONRS_SESSION_ID}
     if let Some(sid) = session_id {
-        result = result.replace("${CLAUDE_SESSION_ID}", sid);
+        result = result.replace("${AIONRS_SESSION_ID}", sid);
     }
 
     // If no args provided, return after env substitutions only.
@@ -233,9 +233,9 @@ mod tests {
     }
 
     #[test]
-    fn test_claude_skill_dir_substitution() {
+    fn test_aionrs_skill_dir_substitution() {
         let result = substitute_arguments(
-            "dir=${CLAUDE_SKILL_DIR}",
+            "dir=${AIONRS_SKILL_DIR}",
             None,
             &[],
             Some("/my/skill"),
@@ -245,9 +245,9 @@ mod tests {
     }
 
     #[test]
-    fn test_claude_session_id_substitution() {
+    fn test_aionrs_session_id_substitution() {
         let result = substitute_arguments(
-            "sid=${CLAUDE_SESSION_ID}",
+            "sid=${AIONRS_SESSION_ID}",
             None,
             &[],
             None,
@@ -455,13 +455,13 @@ mod supplemental_tests {
     }
 
     // -----------------------------------------------------------------------
-    // TC-6.x: ${CLAUDE_SKILL_DIR} substitution
+    // TC-6.x: ${AIONRS_SKILL_DIR} substitution
     // -----------------------------------------------------------------------
 
     #[test]
     fn tc_6_1_skill_dir_replaced() {
         let r = substitute_arguments(
-            "cd ${CLAUDE_SKILL_DIR}",
+            "cd ${AIONRS_SKILL_DIR}",
             None,
             &[],
             Some("/home/user/.aionrs/skills/my-skill"),
@@ -472,15 +472,15 @@ mod supplemental_tests {
 
     #[test]
     fn tc_6_2_skill_dir_none_not_replaced() {
-        // skill_root = None → ${CLAUDE_SKILL_DIR} stays unreplaced
-        let r = substitute_arguments("cd ${CLAUDE_SKILL_DIR}", None, &[], None, None);
-        assert_eq!(r, "cd ${CLAUDE_SKILL_DIR}");
+        // skill_root = None → ${AIONRS_SKILL_DIR} stays unreplaced
+        let r = substitute_arguments("cd ${AIONRS_SKILL_DIR}", None, &[], None, None);
+        assert_eq!(r, "cd ${AIONRS_SKILL_DIR}");
     }
 
     #[test]
     fn tc_6_3_skill_dir_multiple_occurrences() {
         let r = substitute_arguments(
-            "${CLAUDE_SKILL_DIR}/a and ${CLAUDE_SKILL_DIR}/b",
+            "${AIONRS_SKILL_DIR}/a and ${AIONRS_SKILL_DIR}/b",
             None,
             &[],
             Some("/skills/foo"),
@@ -490,19 +490,19 @@ mod supplemental_tests {
     }
 
     // -----------------------------------------------------------------------
-    // TC-7.x: ${CLAUDE_SESSION_ID} substitution
+    // TC-7.x: ${AIONRS_SESSION_ID} substitution
     // -----------------------------------------------------------------------
 
     #[test]
     fn tc_7_1_session_id_replaced() {
-        let r = substitute_arguments("Session: ${CLAUDE_SESSION_ID}", None, &[], None, Some("abc-123"));
+        let r = substitute_arguments("Session: ${AIONRS_SESSION_ID}", None, &[], None, Some("abc-123"));
         assert_eq!(r, "Session: abc-123");
     }
 
     #[test]
     fn tc_7_2_session_id_none_not_replaced() {
-        let r = substitute_arguments("Session: ${CLAUDE_SESSION_ID}", None, &[], None, None);
-        assert_eq!(r, "Session: ${CLAUDE_SESSION_ID}");
+        let r = substitute_arguments("Session: ${AIONRS_SESSION_ID}", None, &[], None, None);
+        assert_eq!(r, "Session: ${AIONRS_SESSION_ID}");
     }
 
     // -----------------------------------------------------------------------
@@ -542,7 +542,7 @@ mod supplemental_tests {
     #[test]
     fn tc_9_1_multiple_placeholder_types() {
         let r = substitute_arguments(
-            "cd ${CLAUDE_SKILL_DIR} && run $ARGUMENTS[0] with $ARGUMENTS",
+            "cd ${AIONRS_SKILL_DIR} && run $ARGUMENTS[0] with $ARGUMENTS",
             Some("alpha beta"),
             &[],
             Some("/skills/foo"),
@@ -583,7 +583,7 @@ mod supplemental_tests {
     #[test]
     fn tc_15_2_skill_dir_and_arguments_same_line() {
         let r = substitute_arguments(
-            "${CLAUDE_SKILL_DIR}: $ARGUMENTS",
+            "${AIONRS_SKILL_DIR}: $ARGUMENTS",
             Some("test"),
             &[],
             Some("/root"),

@@ -1,4 +1,4 @@
-// OAuth 2.0 Device Authorization Flow for Claude.ai subscriber accounts.
+// OAuth 2.0 Device Authorization Flow for Anthropic subscriber accounts.
 
 use std::path::PathBuf;
 

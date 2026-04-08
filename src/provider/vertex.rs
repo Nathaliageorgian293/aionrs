@@ -1,4 +1,4 @@
-// Google Vertex AI provider for Claude models.
+// Google Vertex AI provider for Anthropic models.
 // Uses GCP OAuth2 authentication. Response is standard SSE (same as Anthropic).
 
 use async_trait::async_trait;

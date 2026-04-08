@@ -99,7 +99,7 @@ struct Cli {
     #[arg(long)]
     skills_path: bool,
 
-    /// Login with Claude.ai account (OAuth device flow)
+    /// Login with Anthropic account (OAuth device flow)
     #[arg(long)]
     login: bool,
 

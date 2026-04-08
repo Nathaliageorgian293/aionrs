@@ -101,7 +101,7 @@ the agent can invoke by name.  The module is split into focused submodules:
 | `paths` | Platform skill directory resolution (`~/.config/aionrs/skills/`, `.aionrs/skills/`, legacy paths) |
 | `discovery` | Runtime directory lookup keyed on the active working directory |
 | `executor` | Execute a skill: variable substitution + optional shell command expansion |
-| `substitution` | `$ARGUMENTS`, `$0`, `${CLAUDE_SKILL_DIR}` replacement logic |
+| `substitution` | `$ARGUMENTS`, `$0`, `${AIONRS_SKILL_DIR}` replacement logic |
 | `shell` | Shell command execution for `` !`cmd` `` syntax in skill bodies |
 | `permissions` | Permission chain evaluation (deny → allow → safe-properties → ask) |
 | `conditional` | Conditional activation: `paths:` glob matching |

@@ -10,7 +10,7 @@ A skill is a Markdown file with a YAML front matter header.  When the agent
 invokes a skill, it:
 
 1. Resolves the skill by name from the loaded skill list
-2. Substitutes variables (`$ARGUMENTS`, `$0`, `${CLAUDE_SKILL_DIR}`)
+2. Substitutes variables (`$ARGUMENTS`, `$0`, `${AIONRS_SKILL_DIR}`)
 3. Expands any shell commands (`` !`cmd` `` syntax)
 4. Returns the processed text as the skill's output
 
@@ -119,7 +119,7 @@ Inside the skill body, the following variables are replaced at runtime:
 |----------|---------------|
 | `$ARGUMENTS` | The full argument string passed to the skill invocation |
 | `$0` | The skill name itself |
-| `${CLAUDE_SKILL_DIR}` | Absolute path to the directory containing this skill's `SKILL.md` |
+| `${AIONRS_SKILL_DIR}` | Absolute path to the directory containing this skill's `SKILL.md` |
 
 Example:
 
@@ -131,7 +131,7 @@ description: Run tests for a specific module
 
 Run the test suite for module: $ARGUMENTS
 
-Working directory: ${CLAUDE_SKILL_DIR}
+Working directory: ${AIONRS_SKILL_DIR}
 ```
 
 ## Shell Command Expansion

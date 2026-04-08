@@ -172,7 +172,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_prepare_inline_substitutes_skill_dir() {
-        let skill = make_skill("Dir: ${CLAUDE_SKILL_DIR}", Some("/skills/mine"));
+        let skill = make_skill("Dir: ${AIONRS_SKILL_DIR}", Some("/skills/mine"));
         let result = prepare_inline_content(&skill, None, None, "/tmp").await.unwrap();
         // Header + substituted dir
         assert!(result.contains("Dir: /skills/mine"));
@@ -180,7 +180,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_prepare_inline_substitutes_session_id() {
-        let skill = make_skill("Session: ${CLAUDE_SESSION_ID}", None);
+        let skill = make_skill("Session: ${AIONRS_SESSION_ID}", None);
         let result = prepare_inline_content(&skill, None, Some("sess-abc"), "/tmp").await.unwrap();
         assert!(result.contains("Session: sess-abc"));
     }
@@ -264,7 +264,7 @@ mod supplemental_tests {
     async fn tc_10_3_skill_root_prepends_header() {
         let skill = make_skill_full(
             "s",
-            "${CLAUDE_SKILL_DIR}/script.sh",
+            "${AIONRS_SKILL_DIR}/script.sh",
             Some("/path/to/skill"),
             vec![],
             ExecutionContext::Inline,
@@ -280,7 +280,7 @@ mod supplemental_tests {
     // TC-10.x: session_id substitution wired through
     #[tokio::test]
     async fn tc_10_x_session_id_substituted() {
-        let skill = make_skill_full("s", "${CLAUDE_SESSION_ID}", None, vec![], ExecutionContext::Inline);
+        let skill = make_skill_full("s", "${AIONRS_SESSION_ID}", None, vec![], ExecutionContext::Inline);
         let result = prepare_inline_content(&skill, None, Some("sess-xyz"), "/tmp").await.unwrap();
         assert_eq!(result, "sess-xyz");
     }

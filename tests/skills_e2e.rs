@@ -58,7 +58,7 @@ fn make_project() -> (TempDir, PathBuf) {
     fs::create_dir_all(&migrate_dir).unwrap();
     fs::write(
         migrate_dir.join("SKILL.md"),
-        "---\nname: db:migrate\ndescription: Run database migrations\n---\n\nRunning migrations for: $ARGUMENTS\nSkill directory: ${CLAUDE_SKILL_DIR}\n",
+        "---\nname: db:migrate\ndescription: Run database migrations\n---\n\nRunning migrations for: $ARGUMENTS\nSkill directory: ${AIONRS_SKILL_DIR}\n",
     ).unwrap();
 
     // --- rust-review (conditional paths) ---
@@ -218,7 +218,7 @@ async fn e7_system_prompt_injection() {
 }
 
 // ---------------------------------------------------------------------------
-// E8: Full SkillTool execution (db:migrate with $ARGUMENTS + ${CLAUDE_SKILL_DIR})
+// E8: Full SkillTool execution (db:migrate with $ARGUMENTS + ${AIONRS_SKILL_DIR})
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
@@ -236,11 +236,11 @@ async fn e8_full_execution() {
         result.content
     );
     assert!(
-        !result.content.contains("${CLAUDE_SKILL_DIR}"),
-        "E8 FAIL: ${{CLAUDE_SKILL_DIR}} not expanded. Got: {}",
+        !result.content.contains("${AIONRS_SKILL_DIR}"),
+        "E8 FAIL: ${{AIONRS_SKILL_DIR}} not expanded. Got: {}",
         result.content
     );
-    println!("E8 PASS: full execution with $ARGUMENTS and ${{CLAUDE_SKILL_DIR}} substitution");
+    println!("E8 PASS: full execution with $ARGUMENTS and ${{AIONRS_SKILL_DIR}} substitution");
 }
 
 // ---------------------------------------------------------------------------

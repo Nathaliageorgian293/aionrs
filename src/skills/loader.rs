@@ -335,7 +335,7 @@ async fn load_skill_file(
 
     let resolved_name = build_namespace(base_dir, skill_dir);
     // skill_root is the directory containing SKILL.md (i.e., skill_dir itself),
-    // used for ${CLAUDE_SKILL_DIR} variable substitution in skill content.
+    // used for ${AIONRS_SKILL_DIR} variable substitution in skill content.
     let skill_root = Some(skill_dir.to_string_lossy().into_owned());
 
     let metadata = parse_skill_fields(

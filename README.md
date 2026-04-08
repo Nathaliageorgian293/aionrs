@@ -16,7 +16,7 @@ A Rust-based LLM tool-use agent for the command line. It connects to LLM APIs, a
 - **Prompt caching** — Anthropic cache_control for up to 90% cost reduction
 - **Profile inheritance** — Named profiles with `extends` for quick provider/model switching
 - **OAuth login** — Use Claude.ai subscription directly, no API key needed
-- **CLAUDE.md injection** — Auto-load project-specific system prompts
+- **AGENTS.md injection** — Auto-load project-specific system prompts
 
 ## Quick Start
 
@@ -66,7 +66,7 @@ aionrs --help
 | [Built-in Tools](docs/tools.md) | Detailed reference for all 7 tools |
 | [MCP Integration](docs/mcp.md) | Model Context Protocol client setup and usage |
 | [Providers & Auth](docs/providers.md) | Multi-provider config, profiles, Bedrock, Vertex, OAuth |
-| [Advanced Features](docs/advanced.md) | Sub-agents, hooks, prompt caching, VCR, CLAUDE.md |
+| [Advanced Features](docs/advanced.md) | Sub-agents, hooks, prompt caching, VCR, AGENTS.md |
 | [Troubleshooting](docs/troubleshooting.md) | Common errors and solutions |
 | [JSON Stream Protocol](docs/json-stream-protocol.md) | Host integration protocol (`--json-stream` mode) |
 

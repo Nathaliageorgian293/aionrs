@@ -30,7 +30,7 @@ struct ConditionalEntry {
 ///
 /// Uses [`glob::Pattern`] for path matching. This covers the common cases
 /// (`*.rs`, `src/**/*.ts`, etc.) but does **not** support `!` negation
-/// patterns (unlike the TypeScript `ignore` library used in claude-code).
+/// patterns (unlike the TypeScript `ignore` library used in the reference implementation).
 /// Invalid patterns are logged and skipped rather than causing a panic (C1).
 ///
 /// # Concurrency

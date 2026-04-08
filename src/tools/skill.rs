@@ -27,7 +27,7 @@ pub struct SkillTool {
     cwd: String,
     /// Permission checker for skill-level deny/allow rules.
     checker: SkillPermissionChecker,
-    /// Session ID passed to prepare_inline_content for ${CLAUDE_SESSION_ID} substitution.
+    /// Session ID passed to prepare_inline_content for ${AIONRS_SESSION_ID} substitution.
     /// None if sessions are disabled or not yet initialised.
     session_id: Option<String>,
     /// Spawner for fork-mode skills. None when SkillTool is built without fork support.
@@ -526,7 +526,7 @@ mod supplemental_tests {
 
     #[tokio::test]
     async fn tc_13_8_full_variable_substitution_integration() {
-        let mut skill = make_skill("my-skill", "Run ${CLAUDE_SKILL_DIR}/tool.sh $ARGUMENTS[0]");
+        let mut skill = make_skill("my-skill", "Run ${AIONRS_SKILL_DIR}/tool.sh $ARGUMENTS[0]");
         skill.skill_root = Some("/my/skill".to_string());
         let tool = tool_with(vec![skill]);
         let result = tool.execute(json!({"skill": "my-skill", "args": "alpha"})).await;

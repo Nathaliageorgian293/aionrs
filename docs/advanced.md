@@ -139,9 +139,9 @@ VCR_MODE=replay VCR_CASSETTE=tests/cassettes/my_test.json \
 
 ---
 
-## CLAUDE.md Auto-Loading
+## AGENTS.md Auto-Loading
 
-If a `CLAUDE.md` file exists in the current working directory, its contents are automatically injected into the system prompt. Use this for:
+If an `AGENTS.md` file exists in the current working directory, its contents are automatically injected into the system prompt. Use this for:
 
 - Project-specific coding standards
 - Architecture descriptions
