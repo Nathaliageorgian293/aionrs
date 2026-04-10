@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Project-specific instructions for AI assistants and contributors.
+Project-specific rules and conventions for AI assistants and contributors.
 
 ## Build & Test
 
@@ -71,100 +71,56 @@ If you need a new compat behavior:
 - Use it in provider code via `self.compat.field_name`
 - Document it in the config reference
 
-### Provider Abstraction
-
 All providers implement the `LlmProvider` trait. The engine never sees
 provider-specific details. Keep it that way:
 
 - `LlmRequest` / `LlmEvent` / `Message` / `ContentBlock` are provider-neutral
 - Format conversion happens inside each provider's `build_messages()` / `build_request_body()`
-- Shared logic (Anthropic/Bedrock/Vertex SSE parsing) lives in `anthropic_shared.rs`
+
+### No Duplicate Code Across Crates
+
+If multiple crates need the same functionality, extract it to the
+appropriate existing crate in the dependency graph — don't copy-paste
+or reimplement. Choose the extraction target based on where it
+semantically belongs and where it minimizes dependency changes.
+
+Don't create a new crate just for one shared function.
+
+### Crate Dependency Direction
+
+This is a Cargo workspace under `crates/`. Dependencies flow downward:
+
+- `aion-types` is the bottom layer — zero internal dependencies
+- `aion-config`, `aion-protocol` depend only on `aion-types`
+- Higher-level crates (`aion-agent`, `aion-cli`) may depend on lower ones
+- Never introduce circular dependencies or upward references
+
+When adding a new crate, check `cargo metadata` to verify it fits the
+existing dependency graph before adding cross-crate imports.
 
 ### File Organization
 
-This project is a **Cargo workspace** with 9 crates under `crates/`:
+- One file per logical unit within each crate
+- Keep files under 800 lines; extract modules when approaching the limit
+- Organize by domain responsibility, not by type
 
-| Crate | Responsibility |
-|-------|----------------|
-| `aion-types` | Provider-neutral shared data types (`Message`, `LlmRequest`, `LlmEvent`, `Tool`, `ToolResult`) |
-| `aion-protocol` | Host↔agent JSON stream protocol, events, commands, approval manager |
-| `aion-config` | Configuration layer, `ProviderCompat`, auth (API key / OAuth), hooks, session config |
-| `aion-providers` | LLM provider implementations (Anthropic, OpenAI, Bedrock, Vertex AI), retry logic |
-| `aion-tools` | 7 built-in tools (Read, Write, Edit, Bash, Grep, Glob, Spawn) + `ToolRegistry` |
-| `aion-mcp` | MCP client (stdio / SSE / streamable-http transports), tool proxy |
-| `aion-skills` | Skill system: discovery, loading, execution, permissions, hooks, watcher |
-| `aion-agent` | Agent engine (core loop), session manager, output sinks, spawner, VCR |
-| `aion-cli` | CLI binary entry point |
-
-Within each crate, one file per logical unit. Shared Anthropic/Bedrock/Vertex SSE
-parsing lives in `aion-providers/src/anthropic_shared.rs`.
-
-## Skills Module
-
-`crates/aion-skills/` implements the Skill system — user-defined prompt snippets that
-the agent can invoke by name.  The module is split into focused submodules:
-
-| Submodule | Responsibility |
-|-----------|----------------|
-| `types` | Core data types: `SkillDefinition`, `SkillSource`, `SkillPermissions`, etc. |
-| `frontmatter` | Parse YAML front matter from SKILL.md files |
-| `loader` | Discover and load skills from the filesystem |
-| `paths` | Platform skill directory resolution (`~/.config/aionrs/skills/`, `.aionrs/skills/`, legacy paths) |
-| `discovery` | Runtime directory lookup keyed on the active working directory |
-| `executor` | Execute a skill: variable substitution + optional shell command expansion |
-| `substitution` | `$ARGUMENTS`, `$0`, `${AIONRS_SKILL_DIR}` replacement logic |
-| `shell` | Shell command execution for `` !`cmd` `` syntax in skill bodies |
-| `permissions` | Permission chain evaluation (deny → allow → safe-properties → ask) |
-| `conditional` | Conditional activation: `paths:` glob matching |
-| `context_modifier` | Apply skill-specified `model`/`effort`/`allowedTools` overrides |
-| `bundled` | Built-in skills compiled into the binary (never truncated by budget) |
-| `mcp` | Load skills from MCP servers; shell commands disabled for MCP skills |
-| `hooks` | Parse and classify `PreToolUse`/`PostToolUse`/`Stop` hooks from skill front matter |
-| `prompt` | Render the skill list for injection into the system prompt; budget control |
-| `watcher` | Watch skill directories for file changes; debounced version counter |
-
-### Development conventions
-
-**Adding a new front matter field**
-
-1. Add the field to the appropriate struct in `aion-skills/src/types.rs`
-2. Parse it in `aion-skills/src/frontmatter.rs` (`parse_frontmatter`)
-3. Add a unit test in `aion-skills/src/frontmatter.rs` inline tests
-
-**Adding a new built-in (bundled) skill**
-
-1. Create a `SKILL.md` file under `aion-skills/src/bundled/`
-2. Register it in `aion-skills/src/bundled.rs` — the `BUNDLED_SKILLS` static slice
-3. Bundled skills are never truncated by prompt budget; use sparingly
-
-**Extending the permission system**
-
-- Permission priority is fixed: deny > allow > safe-properties > ask
-- Never reorder; tests in `aion-skills/src/permissions.rs` and
-  `aion-skills/src/permissions_supplemental_tests.rs` encode the expected chain
-
-**Filesystem watcher**
-
-- `SkillWatcher` uses `notify` (cross-platform) with a 300 ms debounce
-- `should_ignore` filters spurious events; update it (with a comment) when
-  adding new filter rules — do not add `#[cfg(target_os)]` conditionals
-
-### Test organization
+## Test Organization
 
 | Location | What goes there |
 |----------|----------------|
-| Inline `#[cfg(test)]` in each `.rs` file | White-box unit tests for that module's internals |
+| Inline `#[cfg(test)]` in each `.rs` file | Unit tests for that module's internals |
 | `crates/<crate>/tests/` | Integration tests for that crate |
-| `aion-skills/src/permissions_supplemental_tests.rs` | Additional permission chain edge cases |
-| `aion-skills/src/bundled_supplemental_tests.rs` | Bundled skill edge cases |
-| `aion-skills/src/integration_tests.rs` | Cross-module end-to-end tests |
-| `aion-agent/tests/e2e/` | Agent E2E tests (anthropic, openai) |
-| `aion-protocol/tests/` | Protocol approval and command tests |
-| `aion-providers/tests/` | Provider-specific tests |
+
+Unit tests target internal logic and code paths.
+Integration tests target functional requirements and public API —
+write them from the spec, not from reading the implementation.
+
+Every test must verify a meaningful behavior or edge case.
+No trivial tests that just assert the happy path without checking boundaries,
+error conditions, or non-obvious logic.
 
 ## Code Style
 
 - Rust 2021 edition, stable toolchain
 - `cargo clippy` must pass without warnings
 - Comments in English, commit messages in English
-- Keep files under 800 lines; extract modules when approaching the limit
