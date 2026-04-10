@@ -137,7 +137,7 @@ aionrs --init-config
 ### 2. Single-Shot Mode
 
 ```bash
-aionrs "Read and explain src/engine.rs"
+aionrs "Read and explain crates/aion-agent/src/engine.rs"
 ```
 
 ### 3. Interactive REPL

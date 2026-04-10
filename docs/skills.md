@@ -69,7 +69,7 @@ paths:
   - "src/**/*.rs"         # Skill is only active when the working path matches
 
 # Optional — context overrides applied when the skill runs
-model: claude-opus-4-5    # Override the active model
+model: claude-sonnet-4-20250514  # Override the active model
 effort: high              # reasoning effort: low | medium | high
 allowedTools:             # Restrict which tools the skill may use
   - Read

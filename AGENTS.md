@@ -82,15 +82,26 @@ provider-specific details. Keep it that way:
 
 ### File Organization
 
-- `src/provider/` — One file per provider + `compat.rs` + `anthropic_shared.rs`
-- `src/tools/` — One file per tool
-- `src/types/` — Shared data types (provider-neutral)
-- `src/mcp/` — MCP client implementation
-- `src/protocol/` — JSON stream protocol for host integration
+This project is a **Cargo workspace** with 9 crates under `crates/`:
+
+| Crate | Responsibility |
+|-------|----------------|
+| `aion-types` | Provider-neutral shared data types (`Message`, `LlmRequest`, `LlmEvent`, `Tool`, `ToolResult`) |
+| `aion-protocol` | Host↔agent JSON stream protocol, events, commands, approval manager |
+| `aion-config` | Configuration layer, `ProviderCompat`, auth (API key / OAuth), hooks, session config |
+| `aion-providers` | LLM provider implementations (Anthropic, OpenAI, Bedrock, Vertex AI), retry logic |
+| `aion-tools` | 7 built-in tools (Read, Write, Edit, Bash, Grep, Glob, Spawn) + `ToolRegistry` |
+| `aion-mcp` | MCP client (stdio / SSE / streamable-http transports), tool proxy |
+| `aion-skills` | Skill system: discovery, loading, execution, permissions, hooks, watcher |
+| `aion-agent` | Agent engine (core loop), session manager, output sinks, spawner, VCR |
+| `aion-cli` | CLI binary entry point |
+
+Within each crate, one file per logical unit. Shared Anthropic/Bedrock/Vertex SSE
+parsing lives in `aion-providers/src/anthropic_shared.rs`.
 
 ## Skills Module
 
-`src/skills/` implements the Skill system — user-defined prompt snippets that
+`crates/aion-skills/` implements the Skill system — user-defined prompt snippets that
 the agent can invoke by name.  The module is split into focused submodules:
 
 | Submodule | Responsibility |
@@ -116,21 +127,21 @@ the agent can invoke by name.  The module is split into focused submodules:
 
 **Adding a new front matter field**
 
-1. Add the field to the appropriate struct in `types.rs`
-2. Parse it in `frontmatter.rs` (`parse_frontmatter`)
-3. Add a unit test in `frontmatter.rs` inline tests
+1. Add the field to the appropriate struct in `aion-skills/src/types.rs`
+2. Parse it in `aion-skills/src/frontmatter.rs` (`parse_frontmatter`)
+3. Add a unit test in `aion-skills/src/frontmatter.rs` inline tests
 
 **Adding a new built-in (bundled) skill**
 
-1. Create a `SKILL.md` file under `src/skills/bundled/`
-2. Register it in `bundled.rs` — the `BUNDLED_SKILLS` static slice
+1. Create a `SKILL.md` file under `aion-skills/src/bundled/`
+2. Register it in `aion-skills/src/bundled.rs` — the `BUNDLED_SKILLS` static slice
 3. Bundled skills are never truncated by prompt budget; use sparingly
 
 **Extending the permission system**
 
 - Permission priority is fixed: deny > allow > safe-properties > ask
-- Never reorder; tests in `permissions.rs` and `permissions_supplemental_tests.rs`
-  encode the expected chain
+- Never reorder; tests in `aion-skills/src/permissions.rs` and
+  `aion-skills/src/permissions_supplemental_tests.rs` encode the expected chain
 
 **Filesystem watcher**
 
@@ -143,10 +154,13 @@ the agent can invoke by name.  The module is split into focused submodules:
 | Location | What goes there |
 |----------|----------------|
 | Inline `#[cfg(test)]` in each `.rs` file | White-box unit tests for that module's internals |
-| `src/skills/watcher_tests.rs` | Black-box tests for `SkillWatcher` (filesystem events) |
-| `src/skills/permissions_supplemental_tests.rs` | Additional permission chain edge cases |
-| `src/skills/bundled_supplemental_tests.rs` | Bundled skill edge cases |
-| `src/skills/integration_tests.rs` | Cross-module end-to-end tests |
+| `crates/<crate>/tests/` | Integration tests for that crate |
+| `aion-skills/src/permissions_supplemental_tests.rs` | Additional permission chain edge cases |
+| `aion-skills/src/bundled_supplemental_tests.rs` | Bundled skill edge cases |
+| `aion-skills/src/integration_tests.rs` | Cross-module end-to-end tests |
+| `aion-agent/tests/e2e/` | Agent E2E tests (anthropic, openai) |
+| `aion-protocol/tests/` | Protocol approval and command tests |
+| `aion-providers/tests/` | Provider-specific tests |
 
 ## Code Style
 
