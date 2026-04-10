@@ -80,9 +80,8 @@ pub struct OAuthManager {
 
 impl OAuthManager {
     pub fn new(config: AuthConfig) -> Self {
-        let credentials_path = dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("~/.config"))
-            .join("aionrs")
+        let credentials_path = crate::config::app_config_dir()
+            .unwrap_or_else(|| PathBuf::from("aionrs"))
             .join("auth.json");
 
         Self {

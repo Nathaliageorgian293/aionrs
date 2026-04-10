@@ -77,6 +77,20 @@ provider-specific details. Keep it that way:
 - `LlmRequest` / `LlmEvent` / `Message` / `ContentBlock` are provider-neutral
 - Format conversion happens inside each provider's `build_messages()` / `build_request_body()`
 
+### Centralize Platform Differences
+
+Any platform-specific behavior (paths, permissions, shell commands, line
+endings, etc.) must be wrapped in a single centralized function. All call
+sites use that function — never scatter raw platform detection across
+multiple crates or modules.
+
+When adding new platform-aware logic:
+1. Create one function in the appropriate low-level crate
+2. Replace all direct platform API calls with calls to that function
+3. Tests and docs must use platform-neutral notation (e.g.
+   `<config_dir>/aionrs`), never hardcoded platform-specific literals
+   (e.g. `~/.config/aionrs`)
+
 ### No Duplicate Code Across Crates
 
 If multiple crates need the same functionality, extract it to the

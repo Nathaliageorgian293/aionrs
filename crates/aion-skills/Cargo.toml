@@ -31,6 +31,7 @@ libc.workspace = true
 workspace-hack.workspace = true
 
 [dev-dependencies]
+aion-mcp = { workspace = true, features = ["test-utils"] }
 tempfile.workspace   = true
 rstest.workspace     = true
 serial_test.workspace = true

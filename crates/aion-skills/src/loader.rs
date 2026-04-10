@@ -361,8 +361,8 @@ async fn load_skill_file(
 /// Build a colon-separated namespace from a directory hierarchy.
 ///
 /// Examples:
-/// - base=`~/.config/aionrs/skills`, target=`~/.config/aionrs/skills/db/migrate` → `"db:migrate"`
-/// - base=`~/.config/aionrs/skills`, target=`~/.config/aionrs/skills/my-skill` → `"my-skill"`
+/// - base=`<config_dir>/aionrs/skills`, target=`<config_dir>/aionrs/skills/db/migrate` → `"db:migrate"`
+/// - base=`<config_dir>/aionrs/skills`, target=`<config_dir>/aionrs/skills/my-skill` → `"my-skill"`
 pub(crate) fn build_namespace(base_dir: &Path, target_dir: &Path) -> String {
     match target_dir.strip_prefix(base_dir) {
         Ok(relative) => relative

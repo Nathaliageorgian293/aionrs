@@ -506,12 +506,22 @@ fn resolve_api_key(
     )
 }
 
+// --- App directories ---
+
+/// Platform-aware app config root.
+///
+/// - Linux:   `~/.config/aionrs`
+/// - macOS:   `~/Library/Application Support/aionrs`
+/// - Windows: `%APPDATA%\aionrs`
+pub fn app_config_dir() -> Option<PathBuf> {
+    dirs::config_dir().map(|d| d.join("aionrs"))
+}
+
 // --- Config file loading and merging ---
 
 pub fn global_config_path() -> PathBuf {
-    dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("~/.config"))
-        .join("aionrs")
+    app_config_dir()
+        .unwrap_or_else(|| PathBuf::from("aionrs"))
         .join("config.toml")
 }
 

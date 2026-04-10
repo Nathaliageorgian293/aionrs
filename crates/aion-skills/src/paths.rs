@@ -1,19 +1,21 @@
 use std::path::{Path, PathBuf};
 
+use aion_config::config::app_config_dir;
+
 // ---------------------------------------------------------------------------
-// User-level directories (XDG: ~/.config/aionrs/)
+// User-level directories (<config_dir>/aionrs/)
 // ---------------------------------------------------------------------------
 
-/// Return the user-level skills directory: `~/.config/aionrs/skills/`
+/// Return the user-level skills directory: `<config_dir>/aionrs/skills/`
 ///
 /// Returns `None` if the platform config directory cannot be determined.
 pub fn user_skills_dir() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("aionrs").join("skills"))
+    app_config_dir().map(|d| d.join("skills"))
 }
 
-/// Return the user-level legacy commands directory: `~/.config/aionrs/commands/`
+/// Return the user-level legacy commands directory: `<config_dir>/aionrs/commands/`
 pub fn user_commands_dir() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join("aionrs").join("commands"))
+    app_config_dir().map(|d| d.join("commands"))
 }
 
 // ---------------------------------------------------------------------------
@@ -133,7 +135,7 @@ mod tests {
                 "expected path to end with 'skills': {s}"
             );
         }
-        // If dirs::config_dir() returns None (rare), that's acceptable.
+        // If app_config_dir() returns None (rare), that's acceptable.
     }
 
     #[test]

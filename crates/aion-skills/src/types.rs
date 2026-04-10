@@ -78,7 +78,7 @@ pub enum ExecutionContext {
 /// Where the skill file originates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SkillSource {
-    /// ~/.config/aionrs/skills/
+    /// `<config_dir>/aionrs/skills/`
     User,
     /// .aionrs/skills/ (project-level)
     Project,
