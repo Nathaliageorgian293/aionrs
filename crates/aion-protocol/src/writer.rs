@@ -54,6 +54,10 @@ mod tests {
             capabilities: Capabilities {
                 tool_approval: true,
                 thinking: false,
+                effort: false,
+                effort_levels: vec![],
+                modes: vec!["default".into(), "auto_edit".into(), "yolo".into()],
+                current_mode: "default".into(),
                 mcp: false,
             },
         };
